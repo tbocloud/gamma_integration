@@ -3,26 +3,22 @@
 frappe.ui.form.on('Quotation', {
     refresh: function(frm) {
         add_gamma_buttons(frm);
-        // Auto-refresh Gamma proposals on form load (only once)
-        if (!frm._gamma_refreshed) {
-            frm._gamma_refreshed = true;
-            refresh_gamma_proposals(frm);
-        } else {
-            display_gamma_proposals(frm);
-        }
+        // Completely disable automatic display to prevent infinite loops
+        console.log('Quotation refresh - automatic Gamma display disabled');
     },
     
     gamma_proposals: function(frm) {
-        // Prevent infinite loops
-        if (!frm._gamma_updating) {
-            display_gamma_proposals(frm);
-        }
+        // Completely disable automatic refresh on child table changes
+        console.log('Child table changed, but auto-refresh is disabled to prevent loops');
     },
     
     onload: function(frm) {
-        // Reset refresh flag on load
-        frm._gamma_refreshed = false;
+        // Reset all flags on load
+        frm._gamma_initialized = false;
         frm._gamma_updating = false;
+        frm._gamma_displaying = false;
+        frm._gamma_refreshing = false;
+        console.log('Quotation loaded - all Gamma flags reset');
     }
 });
 
@@ -30,6 +26,10 @@ function add_gamma_buttons(frm) {
     // Add custom buttons for Gamma integration
     frm.add_custom_button(__('Create Gamma Proposal'), function() {
         create_gamma_proposal_dialog(frm);
+    }, __('Gamma'));
+    
+    frm.add_custom_button(__('Display Proposals'), function() {
+        display_gamma_proposals(frm);
     }, __('Gamma'));
     
     frm.add_custom_button(__('Sync All Proposals'), function() {
@@ -157,9 +157,13 @@ function create_gamma_proposal_dialog(frm) {
 }
 
 function refresh_gamma_proposals(frm) {
-    if (!frm.doc.name || frm._gamma_refreshing) return;
+    if (!frm.doc.name || frm._gamma_refreshing) {
+        console.log('Refresh blocked - already refreshing or no document name');
+        return;
+    }
     
     frm._gamma_refreshing = true;
+    console.log('Starting manual refresh of Gamma proposals');
     
     // Call the refresh API to ensure all proposals are linked
     frappe.call({
@@ -168,26 +172,24 @@ function refresh_gamma_proposals(frm) {
             quotation_name: frm.doc.name
         },
         callback: function(r) {
-            frm._gamma_updating = true;
-            // Reload the form to get updated child table data
-            frm.reload_doc().then(() => {
-                frm._gamma_updating = false;
-                frm._gamma_refreshing = false;
+            console.log('Refresh API completed - NOT reloading document to prevent loops');
+            // Don't reload document to prevent infinite loops
+            // Just display with current data
+            frm._gamma_refreshing = false;
+            setTimeout(() => {
                 display_gamma_proposals(frm);
-            });
+            }, 500);
         },
         error: function(r) {
             console.error('Error refreshing Gamma proposals:', r);
             frm._gamma_refreshing = false;
-            // Still try to display what we have
-            display_gamma_proposals(frm);
         }
     });
 }
 
 function display_gamma_proposals(frm) {
-    if (frm._gamma_displaying) {
-        console.log('Already displaying Gamma proposals, skipping...');
+    if (frm._gamma_displaying || frm._gamma_refreshing) {
+        console.log('Already displaying/refreshing Gamma proposals, skipping...');
         return;
     }
     
@@ -210,35 +212,42 @@ function display_gamma_proposals(frm) {
         frm._gamma_displaying = false;
     } else {
         console.log('No child table data, falling back to API call');
-        // Fallback to API call for backward compatibility
-        frappe.call({
-            method: 'gamma_integration.gamma_integration.api.get_quotation_proposals',
-            args: {
-                quotation_name: frm.doc.name
-            },
-            callback: function(r) {
-                if (r.message && r.message.status === 'success') {
-                    let proposals = r.message.proposals || [];
-                    console.log('API returned:', proposals.length, 'proposals');
-                    if (proposals.length === 0) {
-                        show_empty_state(frm);
+        // Only call API if we haven't already tried recently (reduced from 5s to 3s for better performance)
+        if (!frm._last_api_call || (Date.now() - frm._last_api_call) > 3000) {
+            frm._last_api_call = Date.now();
+            frappe.call({
+                method: 'gamma_integration.gamma_integration.api.get_quotation_proposals',
+                args: {
+                    quotation_name: frm.doc.name
+                },
+                callback: function(r) {
+                    if (r.message && r.message.status === 'success') {
+                        let proposals = r.message.proposals || [];
+                        console.log('API returned:', proposals.length, 'proposals');
+                        if (proposals.length === 0) {
+                            show_empty_state(frm);
+                        } else {
+                            let html = generate_proposals_html(proposals);
+                            frm.set_df_property('gamma_proposals_display', 'options', html);
+                            frm.refresh_field('gamma_proposals_display');
+                        }
                     } else {
-                        let html = generate_proposals_html(proposals);
-                        frm.set_df_property('gamma_proposals_display', 'options', html);
-                        frm.refresh_field('gamma_proposals_display');
+                        console.log('API call failed or returned no data');
+                        show_empty_state(frm);
                     }
-                } else {
-                    console.log('API call failed or returned no data');
+                    frm._gamma_displaying = false;
+                },
+                error: function(r) {
+                    console.error('Error in get_quotation_proposals:', r);
                     show_empty_state(frm);
+                    frm._gamma_displaying = false;
                 }
-                frm._gamma_displaying = false;
-            },
-            error: function(r) {
-                console.error('Error in get_quotation_proposals:', r);
-                show_empty_state(frm);
-                frm._gamma_displaying = false;
-            }
-        });
+            });
+        } else {
+            console.log('API call throttled, showing empty state');
+            show_empty_state(frm);
+            frm._gamma_displaying = false;
+        }
     }
 }
 
@@ -249,13 +258,24 @@ function show_empty_state(frm) {
             <div style="font-size: 48px; color: #6c757d; margin-bottom: 15px;">📋</div>
             <h5 style="color: #6c757d; margin-bottom: 10px;">No Gamma Proposals</h5>
             <p style="color: #adb5bd; margin-bottom: 20px;">Click "Create Gamma Proposal" to add interactive presentations</p>
-            <button class="btn btn-primary btn-sm" onclick="create_gamma_proposal_from_empty_state('${quotation_name}')">
+            <button class="btn btn-primary btn-sm" id="create-first-gamma-proposal" data-quotation="${quotation_name}">
                 + Create First Proposal
             </button>
         </div>
     `;
     frm.set_df_property('gamma_proposals_display', 'options', empty_html);
     frm.refresh_field('gamma_proposals_display');
+    
+    // Add event listener after the HTML is rendered
+    setTimeout(() => {
+        const button = document.getElementById('create-first-gamma-proposal');
+        if (button) {
+            button.addEventListener('click', function() {
+                const quotation = this.getAttribute('data-quotation');
+                create_gamma_proposal_from_empty_state(quotation);
+            });
+        }
+    }, 100);
 }
 
 function generate_proposals_html_from_table(proposals_table) {
@@ -287,19 +307,28 @@ function generate_proposals_html_from_table(proposals_table) {
         html += '</small>';
         html += '</div>';
         html += '<div style="margin-top: 10px;">';
+        html += '<button class="btn btn-sm btn-warning" onclick="open_gamma_present(\'' + proposal_link.gamma_proposal + '\')" style="margin-right: 5px; color: white; font-weight: bold;">';
+        html += 'Present';
+        html += '</button>';
+        html += '<button class="btn btn-sm btn-danger" onclick="open_gamma_pdf(\'' + proposal_link.gamma_proposal + '\')" style="margin-right: 8px; color: white; font-weight: bold;">';
+        html += 'PDF';
+        html += '</button>';
         html += '<button class="btn btn-sm btn-outline-secondary" onclick="open_gamma_editor(\'' + proposal_link.gamma_proposal + '\')" style="margin-right: 8px;">';
         html += '✏️ Edit';
         html += '</button>';
-        html += '<button class="btn btn-sm btn-outline-primary" onclick="open_gamma_share(\'' + proposal_link.gamma_proposal + '\')">';
+        html += '<button class="btn btn-sm btn-outline-primary" onclick="open_gamma_share(\'' + proposal_link.gamma_proposal + '\')" style="margin-right: 8px;">';
         html += '🔗 Share';
+        html += '</button>';
+        html += '<button class="btn btn-sm btn-outline-danger" onclick="unlink_gamma_proposal(\'' + proposal_link.gamma_proposal + '\', \'' + proposal_link.name + '\')">';
+        html += '🗑️ Unlink';
         html += '</button>';
         html += '</div>';
         html += '</div>';
         html += '</div>';
         
-        // Embedded Presentation
+        // Embedded Presentation - Auto-load and persist
         html += '<div style="position: relative; background: #f8f9fa;">';
-        html += '<div id="gamma-embed-' + index + '" style="min-height: 500px; display: flex; align-items: center; justify-content: center;">';
+        html += '<div id="gamma-embed-' + index + '" style="min-height: 500px; display: flex; align-items: center; justify-content: center;" data-proposal="' + proposal_link.gamma_proposal + '" data-loaded="false">';
         html += '<div style="text-align: center; color: #6c757d;">';
         html += '<div style="font-size: 24px; margin-bottom: 10px;">⏳</div>';
         html += '<div>Loading presentation...</div>';
@@ -317,17 +346,14 @@ function generate_proposals_html_from_table(proposals_table) {
     
     html += '</div>';
     
-    // Add script to auto-load first presentation
-    if (proposals_table.length > 0 && proposals_table[0]?.gamma_proposal) {
-        let first_proposal = proposals_table[0].gamma_proposal;
-        html += '<script>';
-        html += 'setTimeout(function() {';
-        html += 'if (typeof load_gamma_embed === "function") {';
-        html += 'load_gamma_embed(\'' + first_proposal + '\', 0);';
-        html += '}';
-        html += '}, 1000);';
-        html += '</script>';
-    }
+    // Add script to auto-load all presentations and make them persistent
+    html += '<script>';
+    html += 'setTimeout(function() {';
+    html += 'if (typeof load_all_gamma_embeds === "function") {';
+    html += 'load_all_gamma_embeds();';
+    html += '}';
+    html += '}, 1000);';
+    html += '</script>';
     
     return html;
 }
@@ -409,13 +435,22 @@ function sync_all_gamma_proposals(frm) {
         indicator: 'blue'
     });
     
-    // Refresh the form to sync all proposals
-    frm.reload_doc();
+    // Use the controlled refresh mechanism
+    refresh_gamma_proposals(frm);
 }
 // Helper functions for Gamma embed loading and interaction
 function load_gamma_embed(proposal_name, index) {
     if (!proposal_name) {
         console.error('No proposal name provided');
+        return;
+    }
+    
+    let container = document.getElementById(`gamma-embed-${index}`);
+    if (!container) return;
+    
+    // Check if already loaded
+    if (container.getAttribute('data-loaded') === 'true') {
+        console.log('Presentation already loaded for', proposal_name);
         return;
     }
     
@@ -429,44 +464,52 @@ function load_gamma_embed(proposal_name, index) {
         callback: function(r) {
             if (r.message && r.message.gamma_embed_id) {
                 let embed_id = r.message.gamma_embed_id;
-                let container = document.getElementById(`gamma-embed-${index}`);
                 
-                if (container) {
-                    container.innerHTML = `
-                        <iframe src="https://gamma.app/embed/${embed_id}" 
-                                style="width: 100%; height: 500px; border: none; opacity: 0; transition: opacity 0.3s;" 
-                                allowfullscreen 
-                                title="${r.message.proposal_name || 'Gamma Proposal'}"
-                                onload="this.style.opacity=1">
-                        </iframe>
-                    `;
-                }
+                container.innerHTML = `
+                    <iframe src="https://gamma.app/embed/${embed_id}"
+                            style="width: 100%; height: 500px; border: none; opacity: 0; transition: opacity 0.3s;"
+                            allowfullscreen
+                            loading="lazy"
+                            title="${r.message.proposal_name || 'Gamma Proposal'}"
+                            onload="this.style.opacity=1">
+                    </iframe>
+                `;
+                
+                // Mark as loaded to persist
+                container.setAttribute('data-loaded', 'true');
             } else {
-                let container = document.getElementById(`gamma-embed-${index}`);
-                if (container) {
-                    container.innerHTML = `
-                        <div style="text-align: center; padding: 40px; color: #6c757d;">
-                            <div style="font-size: 24px; margin-bottom: 10px;">⚠️</div>
-                            <div>No embed ID available</div>
-                            <small style="display: block; margin-top: 10px;">
-                                Please sync this proposal with Gamma
-                            </small>
-                        </div>
-                    `;
-                }
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #6c757d;">
+                        <div style="font-size: 24px; margin-bottom: 10px;">⚠️</div>
+                        <div>No embed ID available</div>
+                        <small style="display: block; margin-top: 10px;">
+                            Please sync this proposal with Gamma
+                        </small>
+                    </div>
+                `;
             }
         },
         error: function(r) {
             console.error('Error loading Gamma proposal:', r);
-            let container = document.getElementById(`gamma-embed-${index}`);
-            if (container) {
-                container.innerHTML = `
-                    <div style="text-align: center; padding: 40px; color: #dc3545;">
-                        <div style="font-size: 24px; margin-bottom: 10px;">❌</div>
-                        <div>Error loading proposal</div>
-                    </div>
-                `;
-            }
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #dc3545;">
+                    <div style="font-size: 24px; margin-bottom: 10px;">❌</div>
+                    <div>Error loading proposal</div>
+                </div>
+            `;
+        }
+    });
+}
+
+// Load all gamma embeds automatically
+function load_all_gamma_embeds() {
+    const containers = document.querySelectorAll('[id^="gamma-embed-"]');
+    containers.forEach((container, index) => {
+        const proposal_name = container.getAttribute('data-proposal');
+        if (proposal_name && container.getAttribute('data-loaded') !== 'true') {
+            setTimeout(() => {
+                load_gamma_embed(proposal_name, index);
+            }, index * 500); // Stagger loading to avoid overwhelming
         }
     });
 }
@@ -529,23 +572,138 @@ function open_gamma_share(proposal_name) {
     });
 }
 
-// Auto-refresh display when child table changes
+function open_gamma_present(proposal_name) {
+    if (!proposal_name) {
+        frappe.show_alert({
+            message: 'No proposal selected',
+            indicator: 'red'
+        });
+        return;
+    }
+    
+    frappe.call({
+        method: 'frappe.client.get',
+        args: {
+            doctype: 'Gamma Proposal',
+            name: proposal_name
+        },
+        callback: function(r) {
+            if (r.message && r.message.gamma_embed_id) {
+                // Open in presentation mode (fullscreen)
+                let present_url = `https://gamma.app/public/${r.message.gamma_embed_id}?mode=present`;
+                window.open(present_url, '_blank', 'fullscreen=yes,scrollbars=no,resizable=no');
+                
+                frappe.show_alert({
+                    message: 'Opening presentation in fullscreen mode',
+                    indicator: 'green'
+                });
+            } else {
+                frappe.show_alert({
+                    message: 'No Gamma URL available for this proposal',
+                    indicator: 'orange'
+                });
+            }
+        }
+    });
+}
+
+function open_gamma_pdf(proposal_name) {
+    if (!proposal_name) {
+        frappe.show_alert({
+            message: 'No proposal selected',
+            indicator: 'red'
+        });
+        return;
+    }
+    
+    frappe.call({
+        method: 'frappe.client.get',
+        args: {
+            doctype: 'Gamma Proposal',
+            name: proposal_name
+        },
+        callback: function(r) {
+            if (r.message && r.message.gamma_embed_id) {
+                // Open PDF export URL
+                let pdf_url = `https://gamma.app/public/${r.message.gamma_embed_id}/pdf`;
+                window.open(pdf_url, '_blank');
+                
+                frappe.show_alert({
+                    message: 'Opening PDF export - download will start automatically',
+                    indicator: 'blue'
+                });
+            } else {
+                frappe.show_alert({
+                    message: 'No Gamma URL available for this proposal',
+                    indicator: 'orange'
+                });
+            }
+        }
+    });
+}
+
+function unlink_gamma_proposal(proposal_name, link_name) {
+    if (!proposal_name || !link_name) {
+        frappe.show_alert({
+            message: 'Invalid proposal or link information',
+            indicator: 'red'
+        });
+        return;
+    }
+    
+    frappe.confirm(
+        `Are you sure you want to unlink the Gamma proposal "${proposal_name}" from this quotation?`,
+        function() {
+            // Delete the link record
+            frappe.call({
+                method: 'frappe.client.delete',
+                args: {
+                    doctype: 'Quotation Gamma Proposal',
+                    name: link_name
+                },
+                callback: function(r) {
+                    frappe.show_alert({
+                        message: 'Gamma proposal unlinked successfully',
+                        indicator: 'green'
+                    });
+                    
+                    // Refresh the display
+                    let frm = frappe.ui.form.get_open_form();
+                    if (frm) {
+                        frm.reload_doc().then(() => {
+                            display_gamma_proposals(frm);
+                        });
+                    }
+                },
+                error: function(r) {
+                    frappe.show_alert({
+                        message: 'Error unlinking proposal: ' + (r.message || 'Unknown error'),
+                        indicator: 'red'
+                    });
+                    console.error('Unlink error:', r);
+                }
+            });
+        }
+    );
+}
+
+// Disable automatic refresh on child table changes to prevent infinite loops
+// Users must manually refresh using the "Sync All Proposals" button
 frappe.ui.form.on('Quotation Gamma Proposal', {
     gamma_proposal: function(frm, cdt, cdn) {
-        // Refresh display when proposal is linked
-        setTimeout(() => {
-            display_gamma_proposals(frm);
-        }, 500);
+        console.log('Gamma proposal changed - manual refresh required');
+        frappe.show_alert({
+            message: 'Gamma proposal updated. Click "Sync All Proposals" to refresh display.',
+            indicator: 'blue'
+        });
     },
     
     status: function(frm, cdt, cdn) {
-        // Refresh display when status changes
-        display_gamma_proposals(frm);
+        console.log('Status changed - manual refresh required');
     },
     
     is_primary: function(frm, cdt, cdn) {
-        // Refresh display when primary status changes
-        display_gamma_proposals(frm);
+        console.log('Primary status changed - manual refresh required');
     }
 });
 function link_existing_proposals(frm) {
