@@ -3,11 +3,19 @@
 frappe.ui.form.on('Quotation', {
     refresh: function(frm) {
         add_gamma_buttons(frm);
-        display_gamma_proposals(frm);
+        // Auto-refresh Gamma proposals on form load
+        refresh_gamma_proposals(frm);
     },
     
     gamma_proposals: function(frm) {
         display_gamma_proposals(frm);
+    },
+    
+    onload: function(frm) {
+        // Ensure proposals are linked when form loads
+        if (frm.doc.name) {
+            refresh_gamma_proposals(frm);
+        }
     }
 });
 
@@ -68,7 +76,7 @@ function create_gamma_proposal_dialog(frm) {
                 fieldname: 'proposal_type',
                 fieldtype: 'Select',
                 label: 'Proposal Type',
-                options: 'Main Proposal\nTechnical Proposal\nFinancial Proposal\nExecutive Summary',
+                options: 'Main Proposal\nTechnical Proposal\nFinancial Proposal\nExecutive Summary\nProduct Demo\nCase Study',
                 default: 'Main Proposal'
             },
             {
@@ -139,6 +147,29 @@ function create_gamma_proposal_dialog(frm) {
     });
     
     dialog.show();
+}
+
+function refresh_gamma_proposals(frm) {
+    if (!frm.doc.name) return;
+    
+    // Call the refresh API to ensure all proposals are linked
+    frappe.call({
+        method: 'gamma_integration.gamma_integration.api.refresh_quotation_gamma_display',
+        args: {
+            quotation_name: frm.doc.name
+        },
+        callback: function(r) {
+            // Reload the form to get updated child table data
+            frm.reload_doc().then(() => {
+                display_gamma_proposals(frm);
+            });
+        },
+        error: function(r) {
+            console.error('Error refreshing Gamma proposals:', r);
+            // Still try to display what we have
+            display_gamma_proposals(frm);
+        }
+    });
 }
 
 function display_gamma_proposals(frm) {
@@ -491,8 +522,8 @@ function link_existing_proposals(frm) {
                     indicator: 'green'
                 });
                 
-                // Refresh the form to show newly linked proposals
-                frm.reload_doc();
+                // Use the new refresh mechanism
+                refresh_gamma_proposals(frm);
             } else {
                 frappe.show_alert({
                     message: r.message?.message || 'Error linking proposals',

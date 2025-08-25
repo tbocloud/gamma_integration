@@ -149,7 +149,8 @@ doc_events = {
 # Fixtures
 fixtures = [
     "Custom Field",
-    "Property Setter"
+    "Property Setter",
+    "Print Format"
 ]
 
 # Scheduled Tasks

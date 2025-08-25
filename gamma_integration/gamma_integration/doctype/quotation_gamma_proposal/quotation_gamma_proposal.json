@@ -24,7 +24,7 @@
             "fieldtype": "Select",
             "in_list_view": 1,
             "label": "Type",
-            "options": "Main\nTechnical\nFinancial\nExecutive"
+            "options": "Main\nTechnical\nFinancial\nExecutive\nProduct Demo\nCase Study"
         },
         {
             "fieldname": "column_break_3",

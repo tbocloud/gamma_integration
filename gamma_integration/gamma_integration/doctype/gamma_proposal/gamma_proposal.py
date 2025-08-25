@@ -11,6 +11,14 @@ class GammaProposal(Document):
         self.extract_gamma_embed_id()
         self.update_last_updated()
     
+    def after_insert(self):
+        """Auto-link to quotation after creation"""
+        self.link_to_quotation()
+    
+    def on_update(self):
+        """Update quotation link when proposal is updated"""
+        self.link_to_quotation()
+    
     def extract_gamma_embed_id(self):
         """Extract embed ID from Gamma URL"""
         if self.gamma_url:
@@ -71,6 +79,59 @@ class GammaProposal(Document):
             'Rejected': 'danger'
         }
         return color_map.get(self.status, 'light')
+    
+    def link_to_quotation(self):
+        """Link this proposal to its quotation's child table"""
+        if not self.quotation:
+            return
+        
+        try:
+            # Check if quotation exists and has the gamma_proposals field
+            if not frappe.db.exists("Quotation", self.quotation):
+                return
+            
+            quotation = frappe.get_doc("Quotation", self.quotation)
+            
+            # Check if this proposal is already linked
+            existing_link = None
+            if quotation.get("gamma_proposals"):
+                for child in quotation.gamma_proposals:
+                    if child.gamma_proposal == self.name:
+                        existing_link = child
+                        break
+            
+            # Map proposal types to child table format
+            type_mapping = {
+                "Main Proposal": "Main",
+                "Technical Proposal": "Technical",
+                "Financial Proposal": "Financial",
+                "Executive Summary": "Executive",
+                "Product Demo": "Product Demo",
+                "Case Study": "Case Study"
+            }
+            mapped_type = type_mapping.get(self.proposal_type, "Main")
+            
+            if existing_link:
+                # Update existing link
+                existing_link.proposal_type = mapped_type
+                existing_link.status = self.status or "Draft"
+            else:
+                # Create new link
+                quotation.append("gamma_proposals", {
+                    "gamma_proposal": self.name,
+                    "proposal_type": mapped_type,
+                    "status": self.status or "Draft",
+                    "is_primary": len(quotation.get("gamma_proposals", [])) == 0
+                })
+            
+            # Save quotation with flags to allow updates
+            quotation.flags.ignore_validate_update_after_submit = True
+            quotation.flags.ignore_permissions = True
+            quotation.save()
+            
+        except Exception as e:
+            # Log error but don't fail the proposal save
+            frappe.log_error(f"Error linking proposal {self.name} to quotation {self.quotation}: {str(e)}")
 
 @frappe.whitelist()
 def sync_quotation_data(doc, method):

@@ -36,7 +36,9 @@ def create_gamma_proposal(quotation_name, proposal_name, proposal_type="Main Pro
                     "Main Proposal": "Main",
                     "Technical Proposal": "Technical",
                     "Financial Proposal": "Financial",
-                    "Executive Summary": "Executive"
+                    "Executive Summary": "Executive",
+                    "Product Demo": "Product Demo",
+                    "Case Study": "Case Study"
                 }
                 mapped_type = type_mapping.get(proposal_type, "Main")
                 
@@ -139,7 +141,9 @@ def link_existing_proposals():
             "Main Proposal": "Main",
             "Technical Proposal": "Technical",
             "Financial Proposal": "Financial",
-            "Executive Summary": "Executive"
+            "Executive Summary": "Executive",
+            "Product Demo": "Product Demo",
+            "Case Study": "Case Study"
         }
         
         for proposal in proposals:
@@ -185,4 +189,50 @@ def link_existing_proposals():
         return {
             "status": "error",
             "message": str(e)
+        }
+
+@frappe.whitelist()
+def auto_link_proposal_to_quotation(proposal_name):
+    """Auto-link a specific proposal to its quotation"""
+    try:
+        if not frappe.db.exists("Gamma Proposal", proposal_name):
+            return {"status": "error", "message": "Proposal not found"}
+        
+        proposal = frappe.get_doc("Gamma Proposal", proposal_name)
+        proposal.link_to_quotation()
+        
+        return {
+            "status": "success",
+            "message": f"Proposal {proposal_name} linked successfully"
+        }
+        
+    except Exception as e:
+        frappe.log_error(f"Error in auto_link_proposal_to_quotation: {str(e)}")
+        return {
+            "status": "error",
+            "message": str(e)
+        }
+
+@frappe.whitelist()
+def refresh_quotation_gamma_display(quotation_name):
+    """Refresh the Gamma proposals display for a quotation"""
+    try:
+        # First, ensure all existing proposals are linked
+        proposals = frappe.get_all("Gamma Proposal",
+                                 filters={"quotation": quotation_name},
+                                 fields=["name"])
+        
+        for proposal in proposals:
+            proposal_doc = frappe.get_doc("Gamma Proposal", proposal.name)
+            proposal_doc.link_to_quotation()
+        
+        # Get updated proposals data
+        return get_quotation_proposals(quotation_name)
+        
+    except Exception as e:
+        frappe.log_error(f"Error in refresh_quotation_gamma_display: {str(e)}")
+        return {
+            "status": "error",
+            "message": str(e),
+            "proposals": []
         }
