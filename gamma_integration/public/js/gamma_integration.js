@@ -175,6 +175,12 @@ function refresh_gamma_proposals(frm) {
 function display_gamma_proposals(frm) {
     console.log('Displaying Gamma proposals...', frm.doc.gamma_proposals);
     
+    // Check if we have the gamma_proposals_display field
+    if (!frm.fields_dict.gamma_proposals_display) {
+        console.log('gamma_proposals_display field not found');
+        return;
+    }
+    
     // Use child table data if available, otherwise fall back to API
     if (frm.doc.gamma_proposals && frm.doc.gamma_proposals.length > 0) {
         let html = generate_proposals_html_from_table(frm.doc.gamma_proposals);
@@ -215,7 +221,7 @@ function show_empty_state(frm) {
             <div style="font-size: 48px; color: #6c757d; margin-bottom: 15px;">📋</div>
             <h5 style="color: #6c757d; margin-bottom: 10px;">No Gamma Proposals</h5>
             <p style="color: #adb5bd; margin-bottom: 20px;">Click "Create Gamma Proposal" to add interactive presentations</p>
-            <button class="btn btn-primary btn-sm" onclick="frappe.ui.form.get_open_form().dashboard.add_custom_button_action('Create Gamma Proposal')">
+            <button class="btn btn-primary btn-sm" onclick="create_gamma_proposal_from_empty_state('${frm.doc.name}')">
                 + Create First Proposal
             </button>
         </div>
@@ -540,3 +546,28 @@ function link_existing_proposals(frm) {
         }
     });
 }
+
+// Function to handle empty state button click
+function create_gamma_proposal_from_empty_state(quotation_name) {
+    if (!quotation_name) {
+        frappe.show_alert({
+            message: 'No quotation selected',
+            indicator: 'red'
+        });
+        return;
+    }
+    
+    // Get the current form
+    let frm = frappe.ui.form.get_open_form();
+    if (frm && frm.doc.name === quotation_name) {
+        create_gamma_proposal_dialog(frm);
+    } else {
+        frappe.show_alert({
+            message: 'Please refresh the form and try again',
+            indicator: 'orange'
+        });
+    }
+}
+
+// Make function globally available
+window.create_gamma_proposal_from_empty_state = create_gamma_proposal_from_empty_state;
