@@ -152,12 +152,6 @@ fixtures = [
     "Property Setter"
 ]
 
-# API endpoints
-api_methods = {
-    "gamma_integration.api.create_gamma_proposal": "gamma_integration.gamma_integration.api.create_gamma_proposal",
-    "gamma_integration.api.sync_gamma_data": "gamma_integration.gamma_integration.api.sync_gamma_data"
-}
-
 # Scheduled Tasks
 # ---------------
 
@@ -240,6 +234,7 @@ api_methods = {
 # 		"doctype": "{doctype_4}"
 # 	}
 # ]
+
 
 # Authentication and authorization
 # --------------------------------
