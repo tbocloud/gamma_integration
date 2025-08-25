@@ -249,7 +249,7 @@ function show_empty_state(frm) {
             <div style="font-size: 48px; color: #6c757d; margin-bottom: 15px;">📋</div>
             <h5 style="color: #6c757d; margin-bottom: 10px;">No Gamma Proposals</h5>
             <p style="color: #adb5bd; margin-bottom: 20px;">Click "Create Gamma Proposal" to add interactive presentations</p>
-            <button class="btn btn-primary btn-sm" onclick="create_gamma_proposal_from_empty_state(&quot;${quotation_name}&quot;)">
+            <button class="btn btn-primary btn-sm" onclick="create_gamma_proposal_from_empty_state('${quotation_name}')">
                 + Create First Proposal
             </button>
         </div>
@@ -270,50 +270,49 @@ function generate_proposals_html_from_table(proposals_table) {
         let proposal_type = proposal_link.proposal_type || 'Main';
         let proposal_status = proposal_link.status || 'Draft';
         
-        html += `
-            <div class="gamma-proposal-card" style="margin-bottom: 25px; border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                
-                <!-- Header -->
-                <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 15px; border-bottom: 1px solid #dee2e6;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
-                        <div style="flex: 1;">
-                            <h6 style="margin: 0 0 5px 0; color: #212529;">
-                                ${proposal_name}
-                                ${primary_badge}
-                            </h6>
-                            <small style="color: #6c757d;">
-                                ${proposal_type} Proposal •
-                                <span class="badge badge-${status_color}">${proposal_status}</span>
-                            </small>
-                        </div>
-                        <div style="margin-top: 10px;">
-                            <button class="btn btn-sm btn-outline-secondary" onclick="open_gamma_editor(&quot;${proposal_link.gamma_proposal}&quot;)" style="margin-right: 8px;">
-                                ✏️ Edit
-                            </button>
-                            <button class="btn btn-sm btn-outline-primary" onclick="open_gamma_share(&quot;${proposal_link.gamma_proposal}&quot;)">
-                                🔗 Share
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Embedded Presentation -->
-                <div style="position: relative; background: #f8f9fa;">
-                    <div id="gamma-embed-${index}" style="min-height: 500px; display: flex; align-items: center; justify-content: center;">
-                        <div style="text-align: center; color: #6c757d;">
-                            <div style="font-size: 24px; margin-bottom: 10px;">⏳</div>
-                            <div>Loading presentation...</div>
-                            <small style="display: block; margin-top: 10px;">
-                                <a href="#" onclick="load_gamma_embed(&quot;${proposal_link.gamma_proposal}&quot;, ${index})" class="text-primary">
-                                    Click to load presentation
-                                </a>
-                            </small>
-                        </div>
-                    </div>
-                </div>
-                
-            </div>
-        `;
+        // Build HTML using string concatenation to avoid template literal issues
+        html += '<div class="gamma-proposal-card" style="margin-bottom: 25px; border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">';
+        
+        // Header
+        html += '<div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 15px; border-bottom: 1px solid #dee2e6;">';
+        html += '<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">';
+        html += '<div style="flex: 1;">';
+        html += '<h6 style="margin: 0 0 5px 0; color: #212529;">';
+        html += proposal_name;
+        html += primary_badge;
+        html += '</h6>';
+        html += '<small style="color: #6c757d;">';
+        html += proposal_type + ' Proposal • ';
+        html += '<span class="badge badge-' + status_color + '">' + proposal_status + '</span>';
+        html += '</small>';
+        html += '</div>';
+        html += '<div style="margin-top: 10px;">';
+        html += '<button class="btn btn-sm btn-outline-secondary" onclick="open_gamma_editor(\'' + proposal_link.gamma_proposal + '\')" style="margin-right: 8px;">';
+        html += '✏️ Edit';
+        html += '</button>';
+        html += '<button class="btn btn-sm btn-outline-primary" onclick="open_gamma_share(\'' + proposal_link.gamma_proposal + '\')">';
+        html += '🔗 Share';
+        html += '</button>';
+        html += '</div>';
+        html += '</div>';
+        html += '</div>';
+        
+        // Embedded Presentation
+        html += '<div style="position: relative; background: #f8f9fa;">';
+        html += '<div id="gamma-embed-' + index + '" style="min-height: 500px; display: flex; align-items: center; justify-content: center;">';
+        html += '<div style="text-align: center; color: #6c757d;">';
+        html += '<div style="font-size: 24px; margin-bottom: 10px;">⏳</div>';
+        html += '<div>Loading presentation...</div>';
+        html += '<small style="display: block; margin-top: 10px;">';
+        html += '<a href="#" onclick="load_gamma_embed(\'' + proposal_link.gamma_proposal + '\', ' + index + ')" class="text-primary">';
+        html += 'Click to load presentation';
+        html += '</a>';
+        html += '</small>';
+        html += '</div>';
+        html += '</div>';
+        html += '</div>';
+        
+        html += '</div>';
     });
     
     html += '</div>';
@@ -321,11 +320,10 @@ function generate_proposals_html_from_table(proposals_table) {
     // Add script to auto-load first presentation
     if (proposals_table.length > 0 && proposals_table[0]?.gamma_proposal) {
         let first_proposal = proposals_table[0].gamma_proposal;
-        // Use a different approach to avoid template string issues
         html += '<script>';
         html += 'setTimeout(function() {';
         html += 'if (typeof load_gamma_embed === "function") {';
-        html += 'load_gamma_embed("' + first_proposal + '", 0);';
+        html += 'load_gamma_embed(\'' + first_proposal + '\', 0);';
         html += '}';
         html += '}, 1000);';
         html += '</script>';
