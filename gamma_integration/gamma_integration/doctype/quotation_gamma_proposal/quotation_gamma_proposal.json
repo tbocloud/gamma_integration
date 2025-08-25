@@ -1,0 +1,55 @@
+{
+    "creation": "2025-01-01 00:00:00.000000",
+    "doctype": "DocType",
+    "editable_grid": 1,
+    "engine": "InnoDB",
+    "field_order": [
+        "gamma_proposal",
+        "proposal_type",
+        "column_break_3",
+        "status",
+        "is_primary"
+    ],
+    "fields": [
+        {
+            "fieldname": "gamma_proposal",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "Gamma Proposal",
+            "options": "Gamma Proposal",
+            "reqd": 1
+        },
+        {
+            "fieldname": "proposal_type",
+            "fieldtype": "Select",
+            "in_list_view": 1,
+            "label": "Type",
+            "options": "Main\nTechnical\nFinancial\nExecutive"
+        },
+        {
+            "fieldname": "column_break_3",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "status",
+            "fieldtype": "Select",
+            "in_list_view": 1,
+            "label": "Status",
+            "options": "Draft\nShared\nApproved"
+        },
+        {
+            "fieldname": "is_primary",
+            "fieldtype": "Check",
+            "label": "Primary Proposal"
+        }
+    ],
+    "istable": 1,
+    "modified": "2025-01-01 00:00:00.000000",
+    "modified_by": "Administrator",
+    "module": "Gamma Integration",
+    "name": "Quotation Gamma Proposal",
+    "owner": "Administrator",
+    "permissions": [],
+    "sort_field": "modified",
+    "sort_order": "DESC"
+}

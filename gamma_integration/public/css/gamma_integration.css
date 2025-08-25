@@ -1,0 +1,46 @@
+/* Gamma Integration Styles */
+
+.gamma-proposals-container {
+    margin: 15px 0;
+}
+
+.gamma-proposal-item {
+    transition: box-shadow 0.2s ease;
+}
+
+.gamma-proposal-item:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.proposal-header {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+}
+
+.proposal-actions .btn {
+    font-size: 12px;
+    padding: 4px 8px;
+}
+
+.gamma-proposal-embed iframe {
+    transition: opacity 0.3s ease;
+}
+
+.gamma-proposal-embed iframe:hover {
+    opacity: 0.95;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .proposal-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .proposal-actions {
+        margin-top: 10px;
+    }
+    
+    .gamma-proposal-embed iframe {
+        height: 400px !important;
+    }
+}

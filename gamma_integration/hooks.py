@@ -1,9 +1,11 @@
 app_name = "gamma_integration"
 app_title = "Gamma Integration"
-app_publisher = "sammish"
-app_description = "gamma_integration"
-app_email = "sammish.thundiyil@gmail.com"
-app_license = "mit"
+app_publisher = "Your Company"
+app_description = "Gamma.app integration for Frappe/ERPNext"
+app_icon = "octicon octicon-file-directory"
+app_color = "grey"
+app_email = "your-email@company.com"
+app_license = "MIT"
 
 # Apps
 # ------------------
@@ -25,8 +27,8 @@ app_license = "mit"
 # ------------------
 
 # include js, css files in header of desk.html
-# app_include_css = "/assets/gamma_integration/css/gamma_integration.css"
-# app_include_js = "/assets/gamma_integration/js/gamma_integration.js"
+app_include_css = "/assets/gamma_integration/css/gamma_integration.css"
+app_include_js = "/assets/gamma_integration/js/gamma_integration.js"
 
 # include js, css files in header of web template
 # web_include_css = "/assets/gamma_integration/css/gamma_integration.css"
@@ -137,13 +139,24 @@ app_license = "mit"
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+# Document Events
+doc_events = {
+    "Quotation": {
+        "on_update": "gamma_integration.gamma_integration.doctype.gamma_proposal.gamma_proposal.sync_quotation_data"
+    }
+}
+
+# Fixtures
+fixtures = [
+    "Custom Field",
+    "Property Setter"
+]
+
+# API endpoints
+api_methods = {
+    "gamma_integration.api.create_gamma_proposal": "gamma_integration.gamma_integration.api.create_gamma_proposal",
+    "gamma_integration.api.sync_gamma_data": "gamma_integration.gamma_integration.api.sync_gamma_data"
+}
 
 # Scheduled Tasks
 # ---------------

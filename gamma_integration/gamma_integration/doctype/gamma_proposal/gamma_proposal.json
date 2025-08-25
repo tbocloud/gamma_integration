@@ -1,0 +1,126 @@
+{
+    "actions": [],
+    "allow_rename": 1,
+    "creation": "2025-01-01 00:00:00.000000",
+    "doctype": "DocType",
+    "editable_grid": 1,
+    "engine": "InnoDB",
+    "field_order": [
+        "proposal_name",
+        "quotation",
+        "gamma_url",
+        "gamma_embed_id",
+        "proposal_type",
+        "status",
+        "column_break_6",
+        "created_date",
+        "last_updated",
+        "shared_with",
+        "section_break_10",
+        "description",
+        "section_break_12",
+        "gamma_data"
+    ],
+    "fields": [
+        {
+            "fieldname": "proposal_name",
+            "fieldtype": "Data",
+            "label": "Proposal Name",
+            "reqd": 1
+        },
+        {
+            "fieldname": "quotation",
+            "fieldtype": "Link",
+            "label": "Quotation",
+            "options": "Quotation"
+        },
+        {
+            "fieldname": "gamma_url",
+            "fieldtype": "Data",
+            "label": "Gamma URL",
+            "reqd": 1
+        },
+        {
+            "fieldname": "gamma_embed_id",
+            "fieldtype": "Data",
+            "label": "Gamma Embed ID",
+            "read_only": 1
+        },
+        {
+            "fieldname": "proposal_type",
+            "fieldtype": "Select",
+            "label": "Proposal Type",
+            "options": "Main Proposal\nTechnical Proposal\nFinancial Proposal\nExecutive Summary\nProduct Demo\nCase Study"
+        },
+        {
+            "fieldname": "status",
+            "fieldtype": "Select",
+            "label": "Status",
+            "options": "Draft\nIn Review\nShared\nApproved\nRejected",
+            "default": "Draft"
+        },
+        {
+            "fieldname": "column_break_6",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "created_date",
+            "fieldtype": "Datetime",
+            "label": "Created Date",
+            "default": "now"
+        },
+        {
+            "fieldname": "last_updated",
+            "fieldtype": "Datetime",
+            "label": "Last Updated"
+        },
+        {
+            "fieldname": "shared_with",
+            "fieldtype": "Small Text",
+            "label": "Shared With (Emails)"
+        },
+        {
+            "fieldname": "section_break_10",
+            "fieldtype": "Section Break"
+        },
+        {
+            "fieldname": "description",
+            "fieldtype": "Text Editor",
+            "label": "Description"
+        },
+        {
+            "fieldname": "section_break_12",
+            "fieldtype": "Section Break",
+            "label": "Technical Data"
+        },
+        {
+            "fieldname": "gamma_data",
+            "fieldtype": "JSON",
+            "label": "Gamma Data",
+            "hidden": 1
+        }
+    ],
+    "links": [],
+    "modified": "2025-01-01 00:00:00.000000",
+    "modified_by": "Administrator",
+    "module": "Gamma Integration",
+    "name": "Gamma Proposal",
+    "owner": "Administrator",
+    "permissions": [
+        {
+            "create": 1,
+            "delete": 1,
+            "email": 1,
+            "export": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "System Manager",
+            "share": 1,
+            "write": 1
+        }
+    ],
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "title_field": "proposal_name"
+}

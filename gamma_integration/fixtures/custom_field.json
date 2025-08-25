@@ -1,0 +1,30 @@
+[
+    {
+        "doctype": "Custom Field",
+        "name": "Quotation-gamma_proposals_section",
+        "dt": "Quotation",
+        "fieldname": "gamma_proposals_section",
+        "fieldtype": "Section Break",
+        "label": "Gamma Proposals",
+        "insert_after": "terms"
+    },
+    {
+        "doctype": "Custom Field",
+        "name": "Quotation-gamma_proposals",
+        "dt": "Quotation",
+        "fieldname": "gamma_proposals",
+        "fieldtype": "Table",
+        "label": "Gamma Proposals",
+        "options": "Quotation Gamma Proposal",
+        "insert_after": "gamma_proposals_section"
+    },
+    {
+        "doctype": "Custom Field",
+        "name": "Quotation-gamma_proposals_display",
+        "dt": "Quotation",
+        "fieldname": "gamma_proposals_display",
+        "fieldtype": "HTML",
+        "label": "Proposals Display",
+        "insert_after": "gamma_proposals"
+    }
+]
