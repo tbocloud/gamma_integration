@@ -3,19 +3,26 @@
 frappe.ui.form.on('Quotation', {
     refresh: function(frm) {
         add_gamma_buttons(frm);
-        // Auto-refresh Gamma proposals on form load
-        refresh_gamma_proposals(frm);
+        // Auto-refresh Gamma proposals on form load (only once)
+        if (!frm._gamma_refreshed) {
+            frm._gamma_refreshed = true;
+            refresh_gamma_proposals(frm);
+        } else {
+            display_gamma_proposals(frm);
+        }
     },
     
     gamma_proposals: function(frm) {
-        display_gamma_proposals(frm);
+        // Prevent infinite loops
+        if (!frm._gamma_updating) {
+            display_gamma_proposals(frm);
+        }
     },
     
     onload: function(frm) {
-        // Ensure proposals are linked when form loads
-        if (frm.doc.name) {
-            refresh_gamma_proposals(frm);
-        }
+        // Reset refresh flag on load
+        frm._gamma_refreshed = false;
+        frm._gamma_updating = false;
     }
 });
 
@@ -150,7 +157,9 @@ function create_gamma_proposal_dialog(frm) {
 }
 
 function refresh_gamma_proposals(frm) {
-    if (!frm.doc.name) return;
+    if (!frm.doc.name || frm._gamma_refreshing) return;
+    
+    frm._gamma_refreshing = true;
     
     // Call the refresh API to ensure all proposals are linked
     frappe.call({
@@ -159,13 +168,17 @@ function refresh_gamma_proposals(frm) {
             quotation_name: frm.doc.name
         },
         callback: function(r) {
+            frm._gamma_updating = true;
             // Reload the form to get updated child table data
             frm.reload_doc().then(() => {
+                frm._gamma_updating = false;
+                frm._gamma_refreshing = false;
                 display_gamma_proposals(frm);
             });
         },
         error: function(r) {
             console.error('Error refreshing Gamma proposals:', r);
+            frm._gamma_refreshing = false;
             // Still try to display what we have
             display_gamma_proposals(frm);
         }
@@ -173,20 +186,30 @@ function refresh_gamma_proposals(frm) {
 }
 
 function display_gamma_proposals(frm) {
+    if (frm._gamma_displaying) {
+        console.log('Already displaying Gamma proposals, skipping...');
+        return;
+    }
+    
+    frm._gamma_displaying = true;
     console.log('Displaying Gamma proposals...', frm.doc.gamma_proposals);
     
     // Check if we have the gamma_proposals_display field
     if (!frm.fields_dict.gamma_proposals_display) {
         console.log('gamma_proposals_display field not found');
+        frm._gamma_displaying = false;
         return;
     }
     
     // Use child table data if available, otherwise fall back to API
     if (frm.doc.gamma_proposals && frm.doc.gamma_proposals.length > 0) {
+        console.log('Using child table data:', frm.doc.gamma_proposals.length, 'proposals');
         let html = generate_proposals_html_from_table(frm.doc.gamma_proposals);
         frm.set_df_property('gamma_proposals_display', 'options', html);
         frm.refresh_field('gamma_proposals_display');
+        frm._gamma_displaying = false;
     } else {
+        console.log('No child table data, falling back to API call');
         // Fallback to API call for backward compatibility
         frappe.call({
             method: 'gamma_integration.gamma_integration.api.get_quotation_proposals',
@@ -196,6 +219,7 @@ function display_gamma_proposals(frm) {
             callback: function(r) {
                 if (r.message && r.message.status === 'success') {
                     let proposals = r.message.proposals || [];
+                    console.log('API returned:', proposals.length, 'proposals');
                     if (proposals.length === 0) {
                         show_empty_state(frm);
                     } else {
@@ -204,12 +228,15 @@ function display_gamma_proposals(frm) {
                         frm.refresh_field('gamma_proposals_display');
                     }
                 } else {
+                    console.log('API call failed or returned no data');
                     show_empty_state(frm);
                 }
+                frm._gamma_displaying = false;
             },
             error: function(r) {
                 console.error('Error in get_quotation_proposals:', r);
                 show_empty_state(frm);
+                frm._gamma_displaying = false;
             }
         });
     }
@@ -294,15 +321,14 @@ function generate_proposals_html_from_table(proposals_table) {
     // Add script to auto-load first presentation
     if (proposals_table.length > 0 && proposals_table[0]?.gamma_proposal) {
         let first_proposal = proposals_table[0].gamma_proposal;
-        html += `
-            <script>
-                setTimeout(function() {
-                    if (typeof load_gamma_embed === 'function') {
-                        load_gamma_embed(&quot;${first_proposal}&quot;, 0);
-                    }
-                }, 1000);
-            </script>
-        `;
+        // Use a different approach to avoid template string issues
+        html += '<script>';
+        html += 'setTimeout(function() {';
+        html += 'if (typeof load_gamma_embed === "function") {';
+        html += 'load_gamma_embed("' + first_proposal + '", 0);';
+        html += '}';
+        html += '}, 1000);';
+        html += '</script>';
     }
     
     return html;
