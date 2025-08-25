@@ -3,8 +3,9 @@
 frappe.ui.form.on('Quotation', {
     refresh: function(frm) {
         add_gamma_buttons(frm);
-        // Completely disable automatic display to prevent infinite loops
-        console.log('Quotation refresh - automatic Gamma display disabled');
+        // Check if proposals should be auto-displayed based on persistence setting
+        check_and_auto_display_proposals(frm);
+        console.log('Quotation refresh - checking for auto-display');
     },
     
     gamma_proposals: function(frm) {
@@ -29,7 +30,7 @@ function add_gamma_buttons(frm) {
     }, __('Gamma'));
     
     frm.add_custom_button(__('Display Proposals'), function() {
-        display_gamma_proposals(frm);
+        toggle_gamma_proposals_display(frm);
     }, __('Gamma'));
     
     frm.add_custom_button(__('Sync All Proposals'), function() {
@@ -66,6 +67,56 @@ function add_gamma_buttons(frm) {
             }
         });
     }, __('Gamma'));
+}
+
+// New functions for persistence and toggle functionality
+function check_and_auto_display_proposals(frm) {
+    if (!frm.doc.name) return;
+    
+    // Check localStorage for this quotation's display preference
+    const storageKey = `gamma_proposals_visible_${frm.doc.name}`;
+    const shouldDisplay = localStorage.getItem(storageKey) === 'true';
+    
+    if (shouldDisplay) {
+        console.log('Auto-displaying proposals based on persistence setting');
+        setTimeout(() => {
+            display_gamma_proposals(frm);
+        }, 500);
+    }
+}
+
+function toggle_gamma_proposals_display(frm) {
+    if (!frm.doc.name) return;
+    
+    const storageKey = `gamma_proposals_visible_${frm.doc.name}`;
+    const currentlyVisible = localStorage.getItem(storageKey) === 'true';
+    
+    if (currentlyVisible) {
+        // Hide proposals
+        hide_gamma_proposals(frm);
+        localStorage.setItem(storageKey, 'false');
+        frappe.show_alert({
+            message: 'Proposals hidden - will remain hidden after page reload',
+            indicator: 'blue'
+        });
+    } else {
+        // Show proposals
+        display_gamma_proposals(frm);
+        localStorage.setItem(storageKey, 'true');
+        frappe.show_alert({
+            message: 'Proposals displayed - will remain visible after page reload',
+            indicator: 'green'
+        });
+    }
+}
+
+function hide_gamma_proposals(frm) {
+    if (!frm.fields_dict.gamma_proposals_display) {
+        return;
+    }
+    
+    frm.set_df_property('gamma_proposals_display', 'options', '');
+    frm.refresh_field('gamma_proposals_display');
 }
 
 function create_gamma_proposal_dialog(frm) {
@@ -309,9 +360,6 @@ function generate_proposals_html_from_table(proposals_table) {
         html += '<div style="margin-top: 10px;">';
         html += '<button class="btn btn-sm btn-warning" onclick="open_gamma_present(\'' + proposal_link.gamma_proposal + '\')" style="margin-right: 5px; color: white; font-weight: bold;">';
         html += 'Present';
-        html += '</button>';
-        html += '<button class="btn btn-sm btn-danger" onclick="open_gamma_pdf(\'' + proposal_link.gamma_proposal + '\')" style="margin-right: 8px; color: white; font-weight: bold;">';
-        html += 'Export PDF';
         html += '</button>';
         html += '<button class="btn btn-sm btn-outline-secondary" onclick="open_gamma_editor(\'' + proposal_link.gamma_proposal + '\')" style="margin-right: 8px;">';
         html += '✏️ Edit';
@@ -607,48 +655,6 @@ function open_gamma_present(proposal_name) {
     });
 }
 
-function open_gamma_pdf(proposal_name) {
-    if (!proposal_name) {
-        frappe.show_alert({
-            message: 'No proposal selected',
-            indicator: 'red'
-        });
-        return;
-    }
-    
-    frappe.call({
-        method: 'frappe.client.get',
-        args: {
-            doctype: 'Gamma Proposal',
-            name: proposal_name
-        },
-        callback: function(r) {
-            if (r.message && r.message.gamma_embed_id) {
-                // Create a temporary link to trigger PDF download
-                let pdf_url = `https://gamma.app/docs/${r.message.gamma_embed_id}/export/pdf`;
-                
-                // Create a temporary anchor element to trigger download
-                let link = document.createElement('a');
-                link.href = pdf_url;
-                link.download = `${r.message.proposal_name || 'Gamma-Proposal'}.pdf`;
-                link.target = '_blank';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                
-                frappe.show_alert({
-                    message: 'PDF download started - check your downloads folder',
-                    indicator: 'green'
-                });
-            } else {
-                frappe.show_alert({
-                    message: 'No Gamma URL available for this proposal',
-                    indicator: 'orange'
-                });
-            }
-        }
-    });
-}
 
 function unlink_gamma_proposal(proposal_name, link_name) {
     if (!proposal_name || !link_name) {
