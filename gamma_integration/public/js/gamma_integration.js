@@ -216,12 +216,13 @@ function display_gamma_proposals(frm) {
 }
 
 function show_empty_state(frm) {
+    let quotation_name = frm.doc.name || '';
     let empty_html = `
         <div style="text-align: center; padding: 40px; background: #f8f9fa; border-radius: 8px; margin: 15px 0;">
             <div style="font-size: 48px; color: #6c757d; margin-bottom: 15px;">📋</div>
             <h5 style="color: #6c757d; margin-bottom: 10px;">No Gamma Proposals</h5>
             <p style="color: #adb5bd; margin-bottom: 20px;">Click "Create Gamma Proposal" to add interactive presentations</p>
-            <button class="btn btn-primary btn-sm" onclick="create_gamma_proposal_from_empty_state('${frm.doc.name}')">
+            <button class="btn btn-primary btn-sm" onclick="create_gamma_proposal_from_empty_state(&quot;${quotation_name}&quot;)">
                 + Create First Proposal
             </button>
         </div>
@@ -238,6 +239,9 @@ function generate_proposals_html_from_table(proposals_table) {
         // Get the actual Gamma Proposal document data
         let primary_badge = proposal_link.is_primary ? '<span class="badge badge-success" style="margin-left: 8px;">Primary</span>' : '';
         let status_color = get_status_color(proposal_link.status || 'Draft');
+        let proposal_name = proposal_link.gamma_proposal || ('Proposal ' + (index + 1));
+        let proposal_type = proposal_link.proposal_type || 'Main';
+        let proposal_status = proposal_link.status || 'Draft';
         
         html += `
             <div class="gamma-proposal-card" style="margin-bottom: 25px; border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
@@ -247,19 +251,19 @@ function generate_proposals_html_from_table(proposals_table) {
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
                         <div style="flex: 1;">
                             <h6 style="margin: 0 0 5px 0; color: #212529;">
-                                ${proposal_link.gamma_proposal || 'Proposal ' + (index + 1)}
+                                ${proposal_name}
                                 ${primary_badge}
                             </h6>
                             <small style="color: #6c757d;">
-                                ${proposal_link.proposal_type || 'Main'} Proposal •
-                                <span class="badge badge-${status_color}">${proposal_link.status || 'Draft'}</span>
+                                ${proposal_type} Proposal •
+                                <span class="badge badge-${status_color}">${proposal_status}</span>
                             </small>
                         </div>
                         <div style="margin-top: 10px;">
-                            <button class="btn btn-sm btn-outline-secondary" onclick="open_gamma_editor('${proposal_link.gamma_proposal}')" style="margin-right: 8px;">
+                            <button class="btn btn-sm btn-outline-secondary" onclick="open_gamma_editor(&quot;${proposal_link.gamma_proposal}&quot;)" style="margin-right: 8px;">
                                 ✏️ Edit
                             </button>
-                            <button class="btn btn-sm btn-outline-primary" onclick="open_gamma_share('${proposal_link.gamma_proposal}')">
+                            <button class="btn btn-sm btn-outline-primary" onclick="open_gamma_share(&quot;${proposal_link.gamma_proposal}&quot;)">
                                 🔗 Share
                             </button>
                         </div>
@@ -273,7 +277,7 @@ function generate_proposals_html_from_table(proposals_table) {
                             <div style="font-size: 24px; margin-bottom: 10px;">⏳</div>
                             <div>Loading presentation...</div>
                             <small style="display: block; margin-top: 10px;">
-                                <a href="#" onclick="load_gamma_embed('${proposal_link.gamma_proposal}', ${index})" class="text-primary">
+                                <a href="#" onclick="load_gamma_embed(&quot;${proposal_link.gamma_proposal}&quot;, ${index})" class="text-primary">
                                     Click to load presentation
                                 </a>
                             </small>
@@ -288,15 +292,18 @@ function generate_proposals_html_from_table(proposals_table) {
     html += '</div>';
     
     // Add script to auto-load first presentation
-    html += `
-        <script>
-            setTimeout(function() {
-                if (typeof load_gamma_embed === 'function') {
-                    load_gamma_embed('${proposals_table[0]?.gamma_proposal}', 0);
-                }
-            }, 1000);
-        </script>
-    `;
+    if (proposals_table.length > 0 && proposals_table[0]?.gamma_proposal) {
+        let first_proposal = proposals_table[0].gamma_proposal;
+        html += `
+            <script>
+                setTimeout(function() {
+                    if (typeof load_gamma_embed === 'function') {
+                        load_gamma_embed(&quot;${first_proposal}&quot;, 0);
+                    }
+                }, 1000);
+            </script>
+        `;
+    }
     
     return html;
 }
@@ -306,6 +313,10 @@ function generate_proposals_html(proposals) {
     
     proposals.forEach((proposal) => {
         let primary_badge = proposal.is_primary ? '<span class="badge badge-success">Primary</span>' : '';
+        let status_color = get_status_color(proposal.status);
+        let proposal_name = proposal.proposal_name || 'Untitled Proposal';
+        let proposal_type = proposal.proposal_type || 'Main';
+        let proposal_status = proposal.status || 'Draft';
         
         html += `
             <div class="gamma-proposal-item" style="margin-bottom: 25px; border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden;">
@@ -313,19 +324,19 @@ function generate_proposals_html(proposals) {
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div>
                             <h6 style="margin: 0;">
-                                ${proposal.proposal_name} 
+                                ${proposal_name}
                                 ${primary_badge}
-                                <span class="badge badge-${get_status_color(proposal.status)}">${proposal.status}</span>
+                                <span class="badge badge-${status_color}">${proposal_status}</span>
                             </h6>
-                            <small class="text-muted">${proposal.proposal_type}</small>
+                            <small class="text-muted">${proposal_type}</small>
                         </div>
                         <div class="proposal-actions">
                             ${proposal.gamma_embed_id ? `
-                                <a href="https://gamma.app/docs/${proposal.gamma_embed_id}" target="_blank" 
+                                <a href="https://gamma.app/docs/${proposal.gamma_embed_id}" target="_blank"
                                    class="btn btn-sm btn-outline-secondary" style="margin-right: 8px;">
                                     ✏️ Edit
                                 </a>
-                                <a href="https://gamma.app/public/${proposal.gamma_embed_id}" target="_blank" 
+                                <a href="https://gamma.app/public/${proposal.gamma_embed_id}" target="_blank"
                                    class="btn btn-sm btn-outline-primary">
                                     🔗 Share
                                 </a>
@@ -337,16 +348,16 @@ function generate_proposals_html(proposals) {
                 </div>
                 ${proposal.gamma_embed_id ? `
                     <div class="proposal-content">
-                        <iframe src="https://gamma.app/embed/${proposal.gamma_embed_id}" 
-                                style="width: 100%; height: 500px; border: none;" 
-                                allowfullscreen 
-                                title="${proposal.proposal_name}">
+                        <iframe src="https://gamma.app/embed/${proposal.gamma_embed_id}"
+                                style="width: 100%; height: 500px; border: none;"
+                                allowfullscreen
+                                title="${proposal_name}">
                         </iframe>
                     </div>
                 ` : `
                     <div class="proposal-content" style="padding: 20px; text-align: center;">
                         <p class="text-muted">Proposal created but not yet synced with Gamma</p>
-                        <small>Use "Sync All Proposals" to update from Gamma</small>
+                        <small>Use &quot;Sync All Proposals&quot; to update from Gamma</small>
                     </div>
                 `}
             </div>
