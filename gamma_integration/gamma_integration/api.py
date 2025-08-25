@@ -236,3 +236,57 @@ def refresh_quotation_gamma_display(quotation_name):
             "message": str(e),
             "proposals": []
         }
+
+@frappe.whitelist()
+def unlink_gamma_proposal(proposal_name, link_name):
+    """Unlink a Gamma proposal from quotation with proper permission handling"""
+    try:
+        # Validate inputs
+        if not proposal_name or not link_name:
+            return {
+                "status": "error",
+                "message": "Invalid proposal or link information"
+            }
+        
+        # Check if the link record exists
+        if not frappe.db.exists("Quotation Gamma Proposal", link_name):
+            return {
+                "status": "error",
+                "message": "Link record not found"
+            }
+        
+        # Get the link record to find the quotation
+        link_doc = frappe.get_doc("Quotation Gamma Proposal", link_name)
+        quotation_name = link_doc.parent
+        
+        # Get the quotation document
+        if not frappe.db.exists("Quotation", quotation_name):
+            return {
+                "status": "error",
+                "message": "Quotation not found"
+            }
+        
+        quotation = frappe.get_doc("Quotation", quotation_name)
+        
+        # Find and remove the specific child record
+        for i, child in enumerate(quotation.gamma_proposals):
+            if child.name == link_name:
+                quotation.gamma_proposals.pop(i)
+                break
+        
+        # Set flags to allow updating submitted documents
+        quotation.flags.ignore_validate_update_after_submit = True
+        quotation.flags.ignore_permissions = True
+        quotation.save()
+        
+        return {
+            "status": "success",
+            "message": f"Gamma proposal '{proposal_name}' unlinked successfully"
+        }
+        
+    except Exception as e:
+        frappe.log_error(f"Error in unlink_gamma_proposal: {str(e)}")
+        return {
+            "status": "error",
+            "message": str(e)
+        }

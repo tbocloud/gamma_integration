@@ -311,7 +311,7 @@ function generate_proposals_html_from_table(proposals_table) {
         html += 'Present';
         html += '</button>';
         html += '<button class="btn btn-sm btn-danger" onclick="open_gamma_pdf(\'' + proposal_link.gamma_proposal + '\')" style="margin-right: 8px; color: white; font-weight: bold;">';
-        html += 'PDF';
+        html += 'Export PDF';
         html += '</button>';
         html += '<button class="btn btn-sm btn-outline-secondary" onclick="open_gamma_editor(\'' + proposal_link.gamma_proposal + '\')" style="margin-right: 8px;">';
         html += '✏️ Edit';
@@ -624,13 +624,21 @@ function open_gamma_pdf(proposal_name) {
         },
         callback: function(r) {
             if (r.message && r.message.gamma_embed_id) {
-                // Open PDF export URL
-                let pdf_url = `https://gamma.app/public/${r.message.gamma_embed_id}/pdf`;
-                window.open(pdf_url, '_blank');
+                // Create a temporary link to trigger PDF download
+                let pdf_url = `https://gamma.app/docs/${r.message.gamma_embed_id}/export/pdf`;
+                
+                // Create a temporary anchor element to trigger download
+                let link = document.createElement('a');
+                link.href = pdf_url;
+                link.download = `${r.message.proposal_name || 'Gamma-Proposal'}.pdf`;
+                link.target = '_blank';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
                 
                 frappe.show_alert({
-                    message: 'Opening PDF export - download will start automatically',
-                    indicator: 'blue'
+                    message: 'PDF download started - check your downloads folder',
+                    indicator: 'green'
                 });
             } else {
                 frappe.show_alert({
@@ -654,24 +662,31 @@ function unlink_gamma_proposal(proposal_name, link_name) {
     frappe.confirm(
         `Are you sure you want to unlink the Gamma proposal "${proposal_name}" from this quotation?`,
         function() {
-            // Delete the link record
+            // Use a custom API method to handle unlinking with proper permissions
             frappe.call({
-                method: 'frappe.client.delete',
+                method: 'gamma_integration.gamma_integration.api.unlink_gamma_proposal',
                 args: {
-                    doctype: 'Quotation Gamma Proposal',
-                    name: link_name
+                    proposal_name: proposal_name,
+                    link_name: link_name
                 },
                 callback: function(r) {
-                    frappe.show_alert({
-                        message: 'Gamma proposal unlinked successfully',
-                        indicator: 'green'
-                    });
-                    
-                    // Refresh the display
-                    let frm = frappe.ui.form.get_open_form();
-                    if (frm) {
-                        frm.reload_doc().then(() => {
-                            display_gamma_proposals(frm);
+                    if (r.message && r.message.status === 'success') {
+                        frappe.show_alert({
+                            message: r.message.message || 'Gamma proposal unlinked successfully',
+                            indicator: 'green'
+                        });
+                        
+                        // Refresh the display
+                        let frm = frappe.ui.form.get_open_form();
+                        if (frm) {
+                            frm.reload_doc().then(() => {
+                                display_gamma_proposals(frm);
+                            });
+                        }
+                    } else {
+                        frappe.show_alert({
+                            message: r.message?.message || 'Error unlinking proposal',
+                            indicator: 'red'
                         });
                     }
                 },
